@@ -27,7 +27,7 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const { title, date } = await request.json();
+    const { title, date, location, latitude, longitude } = await request.json();
 
     if (!title || !date) {
       return NextResponse.json(
@@ -36,7 +36,14 @@ export async function PUT(
       );
     }
 
-    const event = await updateEvent(id, title, date);
+    const event = await updateEvent(
+      id,
+      title,
+      date,
+      location ?? null,
+      latitude ?? null,
+      longitude ?? null
+    );
     if (!event) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }

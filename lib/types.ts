@@ -10,6 +10,9 @@ export interface TimelineEvent {
   id: string;
   title: string;
   date: string; // YYYY-MM-DD
+  location: string | null;
+  latitude: number | null;
+  longitude: number | null;
   created_at: string;
   updated_at: string;
   photos: Photo[];

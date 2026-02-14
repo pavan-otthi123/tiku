@@ -6,6 +6,7 @@ import { getCurrentSeason, getTheme } from "@/lib/seasons";
 import SeasonalBackground from "@/components/SeasonalBackground";
 import Timeline from "@/components/Timeline";
 import EventModal from "@/components/EventModal";
+import GlobeView from "@/components/GlobeView";
 
 const DATING_START_DATE =
   process.env.NEXT_PUBLIC_DATING_START_DATE || "2024-01-01";
@@ -19,6 +20,7 @@ export default function Home() {
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<TimelineEvent | null>(null);
+  const [globeOpen, setGlobeOpen] = useState(false);
 
   const theme = getTheme(season);
 
@@ -48,25 +50,27 @@ export default function Home() {
   // Event CRUD handlers
   const handleSaveEvent = async (
     title: string,
-    date: string
+    date: string,
+    location: string | null,
+    latitude: number | null,
+    longitude: number | null
   ): Promise<TimelineEvent> => {
+    const payload = { title, date, location, latitude, longitude };
     if (editingEvent) {
-      // Update existing
       const res = await fetch(`/api/events/${editingEvent.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, date }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       await fetchEvents();
       return data.event;
     } else {
-      // Create new
       const res = await fetch("/api/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, date }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -172,6 +176,14 @@ export default function Home() {
         onSeasonChange={setSeason}
         onEditEvent={openEditModal}
         onCreateEvent={openCreateModal}
+        onOpenGlobe={() => setGlobeOpen(true)}
+      />
+
+      <GlobeView
+        events={events}
+        accentColor={theme.accent}
+        isOpen={globeOpen}
+        onClose={() => setGlobeOpen(false)}
       />
 
       <EventModal

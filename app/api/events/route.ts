@@ -16,7 +16,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { title, date } = await request.json();
+    const { title, date, location, latitude, longitude } = await request.json();
 
     if (!title || !date) {
       return NextResponse.json(
@@ -25,7 +25,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const event = await createEvent(title, date);
+    const event = await createEvent(
+      title,
+      date,
+      location || null,
+      latitude ?? null,
+      longitude ?? null
+    );
     return NextResponse.json({ event }, { status: 201 });
   } catch (error: unknown) {
     console.error("Error creating event:", error);

@@ -1,7 +1,7 @@
 "use client";
 
 import { TimelineEvent, Photo } from "@/lib/types";
-import { getEarliestPhotoDate } from "@/lib/exif";
+import { getFilesMetadata } from "@/lib/exif";
 import { useState, useRef, useCallback } from "react";
 
 interface EventModalProps {
@@ -9,7 +9,7 @@ interface EventModalProps {
   event: TimelineEvent | null; // null = create mode
   accentColor: string;
   onClose: () => void;
-  onSave: (title: string, date: string) => Promise<TimelineEvent>;
+  onSave: (title: string, date: string, location: string | null, latitude: number | null, longitude: number | null) => Promise<TimelineEvent>;
   onAddPhoto: (eventId: string, file: File) => Promise<void>;
   onRemovePhoto: (eventId: string, photo: Photo) => Promise<void>;
   onDelete?: (eventId: string) => Promise<void>;
@@ -30,6 +30,9 @@ export default function EventModal({
   const [date, setDate] = useState(
     event?.date || new Date().toISOString().split("T")[0]
   );
+  const [location, setLocation] = useState(event?.location || "");
+  const [latitude, setLatitude] = useState<number | null>(event?.latitude ?? null);
+  const [longitude, setLongitude] = useState<number | null>(event?.longitude ?? null);
   const [saving, setSaving] = useState(false);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -40,7 +43,9 @@ export default function EventModal({
     event?.id || null
   );
   const [dateAutoFilled, setDateAutoFilled] = useState(false);
+  const [locationAutoFilled, setLocationAutoFilled] = useState(false);
   const [dateManuallySet, setDateManuallySet] = useState(!!event?.date);
+  const [locationManuallySet, setLocationManuallySet] = useState(!!event?.location);
   const [pendingPreviews, setPendingPreviews] = useState<string[]>([]);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -49,12 +54,17 @@ export default function EventModal({
   const resetState = useCallback(() => {
     setTitle(event?.title || "");
     setDate(event?.date || new Date().toISOString().split("T")[0]);
+    setLocation(event?.location || "");
+    setLatitude(event?.latitude ?? null);
+    setLongitude(event?.longitude ?? null);
     setLocalPhotos(event?.photos || []);
     setSavedEventId(event?.id || null);
     setSaving(false);
     setUploadingPhotos(false);
     setDateAutoFilled(false);
+    setLocationAutoFilled(false);
     setDateManuallySet(!!event?.date);
+    setLocationManuallySet(!!event?.location);
     pendingPreviews.forEach((url) => URL.revokeObjectURL(url));
     setPendingPreviews([]);
     setPendingFiles([]);
@@ -69,7 +79,13 @@ export default function EventModal({
     if (!title.trim() || !date) return;
     setSaving(true);
     try {
-      const savedEvent = await onSave(title.trim(), date);
+      const savedEvent = await onSave(
+        title.trim(),
+        date,
+        location.trim() || null,
+        latitude,
+        longitude
+      );
       setSavedEventId(savedEvent.id);
       setLocalPhotos(savedEvent.photos || []);
 
@@ -99,28 +115,38 @@ export default function EventModal({
     }
   };
 
-  // Extract date from photo EXIF. Returns the date string if found.
-  const extractDateFromFiles = useCallback(
-    async (files: FileList): Promise<string | null> => {
-      if (dateManuallySet) return null;
+  // Extract date + location + coords from photo EXIF metadata.
+  const extractMetadataFromFiles = useCallback(
+    async (files: FileList) => {
       try {
-        const exifDate = await getEarliestPhotoDate(Array.from(files));
-        if (exifDate) {
-          setDate(exifDate);
+        const meta = await getFilesMetadata(Array.from(files));
+
+        if (meta.date && !dateManuallySet) {
+          setDate(meta.date);
           setDateAutoFilled(true);
-          return exifDate;
         }
+
+        if (meta.location && !locationManuallySet) {
+          setLocation(meta.location);
+          setLocationAutoFilled(true);
+        }
+
+        if (meta.latitude != null && meta.longitude != null) {
+          setLatitude(meta.latitude);
+          setLongitude(meta.longitude);
+        }
+
+        return meta;
       } catch {
-        // Silently fail — EXIF extraction is best-effort
+        return { date: null, location: null, latitude: null, longitude: null };
       }
-      return null;
     },
-    [dateManuallySet]
+    [dateManuallySet, locationManuallySet]
   );
 
   const handleFiles = async (files: FileList) => {
-    // Auto-fill date from EXIF before uploading
-    await extractDateFromFiles(files);
+    // Auto-fill date + location from EXIF before uploading
+    await extractMetadataFromFiles(files);
 
     if (!savedEventId) {
       // Event not saved yet — stage files as previews
@@ -268,8 +294,50 @@ export default function EventModal({
             />
           </div>
 
-          {/* Save event button (if not saved yet or title/date changed) */}
-          {(!savedEventId || title !== event?.title || date !== event?.date) && (
+          {/* Location */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-sm font-semibold text-gray-700">
+                Location{" "}
+                <span className="text-xs font-normal text-gray-400">
+                  (optional)
+                </span>
+              </label>
+              {locationAutoFilled && (
+                <span
+                  className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+                  style={{
+                    backgroundColor: `${accentColor}15`,
+                    color: accentColor,
+                  }}
+                >
+                  auto-detected from photo
+                </span>
+              )}
+            </div>
+            <div className="relative">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </span>
+              <input
+                type="text"
+                value={location}
+                onChange={(e) => {
+                  setLocation(e.target.value);
+                  setLocationManuallySet(true);
+                  setLocationAutoFilled(false);
+                }}
+                placeholder="e.g. Paris, France"
+                className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-current focus:ring-2 focus:ring-current/10 outline-none text-gray-800 text-sm transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Save event button (if not saved yet or fields changed) */}
+          {(!savedEventId || title !== event?.title || date !== event?.date || (location || "") !== (event?.location || "")) && (
             <button
               onClick={handleSave}
               disabled={saving || !title.trim() || !date}
