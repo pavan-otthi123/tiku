@@ -6,7 +6,11 @@ import { getCurrentSeason, getTheme } from "@/lib/seasons";
 import SeasonalBackground from "@/components/SeasonalBackground";
 import Timeline from "@/components/Timeline";
 import EventModal from "@/components/EventModal";
-import GlobeView from "@/components/GlobeView";
+import dynamic from "next/dynamic";
+
+const GlobeView = dynamic(() => import("@/components/GlobeView"), {
+  ssr: false,
+});
 
 const DATING_START_DATE =
   process.env.NEXT_PUBLIC_DATING_START_DATE || "2024-01-01";

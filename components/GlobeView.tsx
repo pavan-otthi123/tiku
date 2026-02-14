@@ -1,14 +1,17 @@
 "use client";
 
 import { TimelineEvent } from "@/lib/types";
-import { getTheme } from "@/lib/seasons";
-import { getSeasonFromDate, getCurrentSeason } from "@/lib/seasons";
-import type { GlobeMethods } from "react-globe.gl";
-import dynamic from "next/dynamic";
-import { useState, useEffect, useMemo, useRef, useCallback, MutableRefObject } from "react";
-
-// react-globe.gl must be loaded client-side only (uses WebGL)
-const Globe = dynamic(() => import("react-globe.gl"), { ssr: false });
+import { getTheme, getSeasonFromDate } from "@/lib/seasons";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import {
+  Map,
+  Marker,
+  Popup,
+  NavigationControl,
+  type MapRef,
+} from "@vis.gl/react-maplibre";
+import type { StyleSpecification } from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 
 interface GlobeViewProps {
   events: TimelineEvent[];
@@ -17,16 +20,35 @@ interface GlobeViewProps {
   onClose: () => void;
 }
 
-interface GlobePoint {
+interface MapPoint {
   lat: number;
   lng: number;
   title: string;
   date: string;
   location: string;
   color: string;
-  size: number;
   event: TimelineEvent;
 }
+
+/* ── Dark basemap style using CartoDB tiles (free, no API key) ── */
+const MAP_STYLE: StyleSpecification = {
+  version: 8,
+  sources: {
+    "carto-dark": {
+      type: "raster",
+      tiles: ["https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png"],
+      tileSize: 256,
+      attribution: "© OpenStreetMap contributors, © CARTO",
+    },
+  },
+  layers: [
+    {
+      id: "carto-dark-layer",
+      type: "raster",
+      source: "carto-dark",
+    },
+  ],
+};
 
 export default function GlobeView({
   events,
@@ -34,22 +56,11 @@ export default function GlobeView({
   isOpen,
   onClose,
 }: GlobeViewProps) {
-  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-  const [selectedPoint, setSelectedPoint] = useState<GlobePoint | null>(null);
-  const globeRef = useRef<GlobeMethods | undefined>(undefined) as MutableRefObject<GlobeMethods | undefined>;
+  const mapRef = useRef<MapRef>(null);
+  const [selectedPoint, setSelectedPoint] = useState<MapPoint | null>(null);
 
-  // Update dimensions on mount and resize
-  useEffect(() => {
-    if (!isOpen) return;
-    const update = () =>
-      setDimensions({ width: window.innerWidth, height: window.innerHeight });
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, [isOpen]);
-
-  // Build globe points from events that have coordinates
-  const points: GlobePoint[] = useMemo(() => {
+  /* Build map points from events that have coordinates */
+  const points: MapPoint[] = useMemo(() => {
     return events
       .filter((e) => e.latitude != null && e.longitude != null)
       .map((e) => {
@@ -62,42 +73,40 @@ export default function GlobeView({
           date: e.date,
           location: e.location || "",
           color: theme.accent,
-          size: 0.6,
           event: e,
         };
       });
   }, [events]);
 
-  // Auto-rotate to first point
-  useEffect(() => {
-    if (!isOpen || !globeRef.current || points.length === 0) return;
-    const globe = globeRef.current;
-    setTimeout(() => {
-      globe.pointOfView(
-        { lat: points[0].lat, lng: points[0].lng, altitude: 2 },
-        1000
-      );
-    }, 500);
-  }, [isOpen, points]);
-
-  const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr + "T00:00:00");
-    return d.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
-
-  const handlePointClick = useCallback((point: object) => {
-    const p = point as GlobePoint;
-    setSelectedPoint(p);
-    if (globeRef.current) {
-      globeRef.current.pointOfView({ lat: p.lat, lng: p.lng, altitude: 1.5 }, 800);
+  /* Enable globe projection once the map style loads */
+  const handleLoad = useCallback(() => {
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+    try {
+      map.setProjection({ type: "globe" });
+    } catch {
+      // Globe projection requires maplibre-gl >= 5; fall back to mercator silently
     }
   }, []);
 
-  // Close on Escape
+  /* Fly to first event when opened */
+  useEffect(() => {
+    if (!isOpen || points.length === 0) return;
+
+    const timer = setTimeout(() => {
+      const map = mapRef.current?.getMap();
+      if (!map) return;
+      map.flyTo({
+        center: [points[0].lng, points[0].lat],
+        zoom: 4,
+        duration: 1200,
+      });
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [isOpen, points]);
+
+  /* Close on Escape */
   useEffect(() => {
     if (!isOpen) return;
     const handleKey = (e: KeyboardEvent) => {
@@ -110,6 +119,15 @@ export default function GlobeView({
     return () => window.removeEventListener("keydown", handleKey);
   }, [isOpen, selectedPoint, onClose]);
 
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr + "T00:00:00");
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -120,18 +138,8 @@ export default function GlobeView({
         className="absolute top-4 right-4 z-50 w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm text-white flex items-center justify-center hover:bg-white/20 transition-colors active:scale-90"
         aria-label="Close globe"
       >
-        <svg
-          className="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M6 18L18 6M6 6l12 12"
-          />
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
 
@@ -143,113 +151,113 @@ export default function GlobeView({
         </p>
       </div>
 
-      {/* Globe */}
-      {dimensions.width > 0 && (
-        <Globe
-          ref={globeRef}
-          width={dimensions.width}
-          height={dimensions.height}
-          globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
-          backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
-          pointsData={points}
-          pointLat="lat"
-          pointLng="lng"
-          pointColor="color"
-          pointAltitude={0.01}
-          pointRadius="size"
-          pointLabel={(d: object) => {
-            const p = d as GlobePoint;
-            return `<div style="background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);padding:8px 12px;border-radius:10px;font-family:system-ui;border:1px solid rgba(255,255,255,0.1)">
-              <div style="font-weight:700;font-size:13px;color:white">${p.title}</div>
-              <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:2px">${p.location}</div>
-              <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px">${formatDate(p.date)}</div>
-            </div>`;
-          }}
-          onPointClick={handlePointClick}
-          atmosphereColor={accentColor}
-          atmosphereAltitude={0.2}
-          animateIn={true}
-        />
-      )}
+      {/* Map */}
+      <Map
+        ref={mapRef}
+        initialViewState={{
+          longitude: points[0]?.lng ?? 0,
+          latitude: points[0]?.lat ?? 20,
+          zoom: 1.8,
+        }}
+        style={{ width: "100%", height: "100%" }}
+        mapStyle={MAP_STYLE}
+        onLoad={handleLoad}
+        maxZoom={18}
+        minZoom={1}
+        attributionControl={false}
+      >
+        <NavigationControl position="bottom-right" showCompass={false} />
 
-      {/* Selected point detail card */}
-      {selectedPoint && (
-        <div className="absolute bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-80 z-50">
-          <div className="bg-black/70 backdrop-blur-xl rounded-2xl p-4 border border-white/10 text-white">
-            <div className="flex items-start justify-between">
-              <div className="flex-1 min-w-0">
-                <h3 className="font-bold text-base truncate">
-                  {selectedPoint.title}
-                </h3>
-                {selectedPoint.location && (
-                  <div className="flex items-center gap-1 mt-1 text-white/60 text-xs">
-                    <svg
-                      className="w-3 h-3 shrink-0"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                    </svg>
-                    {selectedPoint.location}
-                  </div>
-                )}
-                <p className="text-white/40 text-xs mt-1">
-                  {formatDate(selectedPoint.date)}
-                </p>
-              </div>
-              <button
-                onClick={() => setSelectedPoint(null)}
-                className="ml-2 w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-white/60 hover:text-white shrink-0"
+        {/* Markers */}
+        {points.map((point, i) => (
+          <Marker
+            key={`${point.event.id}-${i}`}
+            longitude={point.lng}
+            latitude={point.lat}
+            anchor="bottom"
+            onClick={(e) => {
+              e.originalEvent.stopPropagation();
+              setSelectedPoint(point);
+              mapRef.current?.getMap()?.flyTo({
+                center: [point.lng, point.lat],
+                zoom: Math.max(mapRef.current?.getMap()?.getZoom() ?? 6, 6),
+                duration: 600,
+              });
+            }}
+          >
+            {/* Custom pin marker */}
+            <div className="flex flex-col items-center cursor-pointer group">
+              <div
+                className="w-7 h-7 rounded-full border-2 border-white shadow-lg flex items-center justify-center transition-transform group-hover:scale-125"
+                style={{
+                  backgroundColor: point.color,
+                  boxShadow: `0 2px 8px ${point.color}80`,
+                }}
               >
-                <svg
-                  className="w-3 h-3"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
+                <svg className="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 010-5 2.5 2.5 0 010 5z" />
                 </svg>
-              </button>
-            </div>
-
-            {/* Thumbnail strip */}
-            {selectedPoint.event.photos.length > 0 && (
-              <div className="flex gap-1.5 mt-3 overflow-x-auto scrollbar-hide">
-                {selectedPoint.event.photos.slice(0, 5).map((photo) => (
-                  <img
-                    key={photo.id}
-                    src={photo.url}
-                    alt=""
-                    className="w-14 h-14 rounded-lg object-cover shrink-0"
-                  />
-                ))}
-                {selectedPoint.event.photos.length > 5 && (
-                  <div className="w-14 h-14 rounded-lg bg-white/10 flex items-center justify-center shrink-0 text-xs text-white/50">
-                    +{selectedPoint.event.photos.length - 5}
-                  </div>
-                )}
               </div>
-            )}
-          </div>
-        </div>
-      )}
+              {/* Pin tail */}
+              <div
+                className="w-0.5 h-2 -mt-0.5"
+                style={{ backgroundColor: point.color }}
+              />
+            </div>
+          </Marker>
+        ))}
+
+        {/* Popup for selected point */}
+        {selectedPoint && (
+          <Popup
+            longitude={selectedPoint.lng}
+            latitude={selectedPoint.lat}
+            anchor="bottom"
+            offset={36}
+            closeOnClick={false}
+            onClose={() => setSelectedPoint(null)}
+            className="globe-popup"
+            maxWidth="280px"
+          >
+            <div className="p-1">
+              <h3 className="font-bold text-sm text-gray-900 truncate">
+                {selectedPoint.title}
+              </h3>
+              {selectedPoint.location && (
+                <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                  <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  {selectedPoint.location}
+                </p>
+              )}
+              <p className="text-xs text-gray-400 mt-0.5">
+                {formatDate(selectedPoint.date)}
+              </p>
+
+              {/* Thumbnail strip */}
+              {selectedPoint.event.photos.length > 0 && (
+                <div className="flex gap-1 mt-2 overflow-x-auto scrollbar-hide">
+                  {selectedPoint.event.photos.slice(0, 4).map((photo) => (
+                    <img
+                      key={photo.id}
+                      src={photo.url}
+                      alt=""
+                      className="w-12 h-12 rounded-md object-cover shrink-0"
+                    />
+                  ))}
+                  {selectedPoint.event.photos.length > 4 && (
+                    <div className="w-12 h-12 rounded-md bg-gray-100 flex items-center justify-center shrink-0 text-xs text-gray-400">
+                      +{selectedPoint.event.photos.length - 4}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </Popup>
+        )}
+      </Map>
 
       {/* Empty state */}
       {points.length === 0 && (
@@ -257,7 +265,7 @@ export default function GlobeView({
           <div className="text-center">
             <p className="text-white/60 text-sm">No locations yet</p>
             <p className="text-white/30 text-xs mt-1">
-              Upload photos with GPS data to see pins on the globe
+              Upload photos with GPS data to see pins on the map
             </p>
           </div>
         </div>
