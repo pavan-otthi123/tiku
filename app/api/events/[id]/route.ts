@@ -63,12 +63,16 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    // Get event first to clean up blob storage
+    // Get event first to clean up blob storage (photos + backgrounds)
     const event = await getEvent(id);
     if (event) {
-      for (const photo of event.photos) {
+      const allUrls = [
+        ...event.photos.map((p) => p.url),
+        ...event.backgrounds.map((b) => b.url),
+      ];
+      for (const url of allUrls) {
         try {
-          await del(photo.url);
+          await del(url);
         } catch {
           // Blob might already be deleted
         }

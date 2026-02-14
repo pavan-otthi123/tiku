@@ -75,6 +75,48 @@ body {
   scroll-snap-type: x mandatory;
 }
 
+/* ── Seasonal animations ──────────────────────────── */
+
+/* Winter: snowflakes falling */
+.seasonal-snow {
+  animation: snowfall linear infinite;
+}
+@keyframes snowfall {
+  0%   { transform: translateY(-5vh) translateX(0); }
+  100% { transform: translateY(105vh) translateX(var(--drift, 10px)); }
+}
+
+/* Fall: leaves drifting down */
+.seasonal-leaf {
+  animation: leaffall ease-in-out infinite;
+}
+@keyframes leaffall {
+  0%   { transform: translateY(-5vh) translateX(0) rotate(var(--rot, 0deg)); }
+  50%  { transform: translateY(50vh) translateX(var(--drift, 20px)) rotate(calc(var(--rot, 0deg) + 180deg)); }
+  100% { transform: translateY(105vh) translateX(calc(var(--drift, 20px) * -0.5)) rotate(calc(var(--rot, 0deg) + 360deg)); }
+}
+
+/* Spring: petals floating upward */
+.seasonal-petal {
+  animation: petalFloat ease-in-out infinite;
+}
+@keyframes petalFloat {
+  0%   { transform: translateY(105vh) translateX(0) rotate(var(--rot, 0deg)); }
+  50%  { transform: translateY(50vh) translateX(var(--drift, 15px)) rotate(calc(var(--rot, 0deg) + 90deg)); }
+  100% { transform: translateY(-5vh) translateX(calc(var(--drift, 15px) * -0.3)) rotate(calc(var(--rot, 0deg) + 180deg)); }
+}
+
+/* Summer: fireflies pulsing & drifting */
+.seasonal-firefly {
+  animation: fireflyGlow ease-in-out infinite;
+}
+@keyframes fireflyGlow {
+  0%, 100% { opacity: 0; transform: translate(0, 0); }
+  20%      { opacity: 0.8; transform: translate(calc(var(--drift, 10px) * 0.3), -8px); }
+  50%      { opacity: 0.3; transform: translate(var(--drift, 10px), 5px); }
+  80%      { opacity: 0.9; transform: translate(calc(var(--drift, 10px) * -0.5), -12px); }
+}
+
 /* ── Selection color ───────────────────────────────── */
 
 ::selection {

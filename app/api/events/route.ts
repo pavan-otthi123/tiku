@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAllEvents, createEvent } from "@/lib/db";
+import { generateAndSaveBackgrounds } from "@/lib/imagen";
 
 export async function GET() {
   try {
@@ -13,10 +14,10 @@ export async function GET() {
   }
 }
 
-
 export async function POST(request: NextRequest) {
   try {
-    const { title, date, location, latitude, longitude } = await request.json();
+    const { title, date, location, latitude, longitude } =
+      await request.json();
 
     if (!title || !date) {
       return NextResponse.json(
@@ -32,6 +33,14 @@ export async function POST(request: NextRequest) {
       latitude ?? null,
       longitude ?? null
     );
+
+    // Fire-and-forget: generate AI background images if we have a location
+    if (location) {
+      generateAndSaveBackgrounds(event.id, location).catch((err) =>
+        console.error("[IMAGEN] Async background generation failed:", err)
+      );
+    }
+
     return NextResponse.json({ event }, { status: 201 });
   } catch (error: unknown) {
     console.error("Error creating event:", error);

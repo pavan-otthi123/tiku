@@ -6,6 +6,14 @@ export interface Photo {
   created_at: string;
 }
 
+export interface BackgroundImage {
+  id: string;
+  event_id: string;
+  url: string;
+  prompt: string | null;
+  created_at: string;
+}
+
 export interface TimelineEvent {
   id: string;
   title: string;
@@ -16,6 +24,7 @@ export interface TimelineEvent {
   created_at: string;
   updated_at: string;
   photos: Photo[];
+  backgrounds: BackgroundImage[];
 }
 
 export type Season = "spring" | "summer" | "fall" | "winter";
