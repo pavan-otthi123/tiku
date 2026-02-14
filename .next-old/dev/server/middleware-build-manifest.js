@@ -1,0 +1,51 @@
+globalThis.__BUILD_MANIFEST = {
+  "pages": {
+    "/_app": [
+      "static/chunks/68a70_next_dist_compiled_0c76677d._.js",
+      "static/chunks/68a70_next_dist_shared_lib_bebb8344._.js",
+      "static/chunks/68a70_next_dist_client_e0c43e76._.js",
+      "static/chunks/68a70_next_dist_869820d5._.js",
+      "static/chunks/68a70_next_app_ec1eeb80.js",
+      "static/chunks/[next]_entry_page-loader_ts_b357b78a._.js",
+      "static/chunks/68a70_react-dom_824be953._.js",
+      "static/chunks/68a70_9451c873._.js",
+      "static/chunks/[root-of-the-server]__e5b20c89._.js",
+      "static/chunks/Documents_tiku_pages__app_2da965e7._.js",
+      "static/chunks/turbopack-Documents_tiku_pages__app_e935ee90._.js"
+    ],
+    "/_error": [
+      "static/chunks/68a70_next_dist_compiled_0c76677d._.js",
+      "static/chunks/68a70_next_dist_shared_lib_66c88acb._.js",
+      "static/chunks/68a70_next_dist_client_e0c43e76._.js",
+      "static/chunks/68a70_next_dist_238f4e04._.js",
+      "static/chunks/68a70_next_error_8506c013.js",
+      "static/chunks/[next]_entry_page-loader_ts_a60ad31a._.js",
+      "static/chunks/68a70_react-dom_824be953._.js",
+      "static/chunks/68a70_9451c873._.js",
+      "static/chunks/[root-of-the-server]__04ece157._.js",
+      "static/chunks/Documents_tiku_pages__error_2da965e7._.js",
+      "static/chunks/turbopack-Documents_tiku_pages__error_3742731f._.js"
+    ]
+  },
+  "devFiles": [],
+  "polyfillFiles": [
+    "static/chunks/68a70_next_dist_build_polyfills_polyfill-nomodule.js"
+  ],
+  "lowPriorityFiles": [],
+  "rootMainFiles": [
+    "static/chunks/[turbopack]_browser_dev_hmr-client_hmr-client_ts_de202777._.js",
+    "static/chunks/68a70_next_dist_compiled_react-dom_9ef62b42._.js",
+    "static/chunks/68a70_next_dist_compiled_react-server-dom-turbopack_b329a291._.js",
+    "static/chunks/68a70_next_dist_compiled_next-devtools_index_81baa42c.js",
+    "static/chunks/68a70_next_dist_compiled_1d43e858._.js",
+    "static/chunks/68a70_next_dist_client_d89882f8._.js",
+    "static/chunks/68a70_next_dist_6c8531f0._.js",
+    "static/chunks/68a70_@swc_helpers_cjs_22504a97._.js",
+    "static/chunks/Documents_tiku_a0ff3932._.js",
+    "static/chunks/turbopack-Documents_tiku_a4e2807b._.js"
+  ]
+};
+globalThis.__BUILD_MANIFEST.lowPriorityFiles = [
+"/static/" + process.env.__NEXT_BUILD_ID + "/_buildManifest.js",
+"/static/" + process.env.__NEXT_BUILD_ID + "/_ssgManifest.js"
+];

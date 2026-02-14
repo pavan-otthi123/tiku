@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Our Story — A Love Timeline
 
-## Getting Started
+A beautiful, immersive photo timeline for you and your partner. Scroll through your memories together, watch your relationship counter tick every second, and see the world change with the seasons.
 
-First, run the development server:
+## Features
+
+- **Vertical timeline** — Full-screen sections you navigate with keyboard (arrow keys / j-k) or finger swipe on mobile
+- **Seasonal backgrounds** — The background gradient shifts between spring, summer, fall, and winter based on each event's date
+- **Live dating counter** — Shows years, months, days, hours, minutes, seconds since you started dating, updating every second
+- **Events with multiple photos** — Each event has a title, date, and a horizontal photo carousel
+- **Full CRUD** — Create events, add/remove photos, edit titles and dates, delete events
+- **Responsive** — Designed mobile-first; vertical scroll-snap works great on phones and laptops
+
+## Tech Stack
+
+- **Next.js 16** (App Router)
+- **Tailwind CSS 4**
+- **Vercel Postgres** — event and photo metadata
+- **Vercel Blob** — image file storage
+- **TypeScript**
+
+## Setup
+
+### 1. Install dependencies
+
+```bash
+npm install
+```
+
+### 2. Create storage on Vercel
+
+1. Go to your [Vercel project dashboard](https://vercel.com)
+2. **Storage → Create Database → Postgres** — this gives you the `POSTGRES_*` env vars
+3. **Storage → Create Store → Blob** — this gives you `BLOB_READ_WRITE_TOKEN`
+
+### 3. Configure environment
+
+```bash
+cp .env.example .env.local
+```
+
+Fill in:
+- `POSTGRES_*` variables from your Vercel Postgres database
+- `BLOB_READ_WRITE_TOKEN` from your Vercel Blob store
+- `NEXT_PUBLIC_DATING_START_DATE` — the date you started dating (YYYY-MM-DD)
+
+### 4. Run locally
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Database tables are **automatically created** on the first API request.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Deploy to Vercel
 
-## Learn More
+1. Push to GitHub
+2. Import at [vercel.com/new](https://vercel.com/new)
+3. Under **Storage**, add a **Postgres** database and a **Blob** store
+4. Add `NEXT_PUBLIC_DATING_START_DATE` to your project's Environment Variables
+5. Deploy
 
-To learn more about Next.js, take a look at the following resources:
+## Navigation
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Input | Action |
+|-------|--------|
+| `↓` / `j` | Next event |
+| `↑` / `k` | Previous event |
+| `←` / `→` | Previous / next photo in carousel |
+| Swipe up/down | Navigate events (mobile) |
+| Swipe left/right | Navigate photos (mobile) |
+| Click side dots | Jump to any event |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Customization
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Start date** — Set `NEXT_PUBLIC_DATING_START_DATE` in `.env.local`
+- **Season colors** — Edit `lib/seasons.ts` theme definitions
+- **Title** — Edit the hero section in `components/Timeline.tsx`
