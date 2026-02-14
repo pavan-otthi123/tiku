@@ -23,7 +23,7 @@ const SLOTS = [
 ];
 
 const FADE_MS = 800; // transition duration
-const SWAP_INTERVAL_MS = 3000; // how often we swap one photo
+const SWAP_INTERVAL_MS = 1500; // how often we swap one photo
 const STAGGER_MS = 500; // delay between initial fade-ins
 
 export default function PhotoGallery({ photos, accentColor }: PhotoGalleryProps) {
