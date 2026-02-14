@@ -300,7 +300,7 @@ export default function EventModal({
             {pendingPreviews.length > 0 && (
               <div className="grid grid-cols-3 gap-2 mb-3">
                 {pendingPreviews.map((src, i) => (
-                  <div key={i} className="relative group aspect-square rounded-xl overflow-hidden" style={{ boxShadow: `0 0 0 2px ${accentColor}40` }}>
+                  <div key={i} className="relative aspect-square rounded-xl overflow-hidden" style={{ boxShadow: `0 0 0 2px ${accentColor}40` }}>
                     <img src={src} alt="" className="w-full h-full object-cover" />
                     <button
                       onClick={() => {
@@ -308,15 +308,12 @@ export default function EventModal({
                         setPendingPreviews((prev) => prev.filter((_, j) => j !== i));
                         setPendingFiles((prev) => prev.filter((_, j) => j !== i));
                       }}
-                      className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                      className="absolute top-1 right-1 w-7 h-7 rounded-full bg-black/70 text-white flex items-center justify-center text-xs active:scale-90 transition-transform"
                     >
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </button>
-                    <div className="absolute bottom-0 inset-x-0 bg-black/40 text-white text-[9px] text-center py-0.5">
-                      pending
-                    </div>
                   </div>
                 ))}
               </div>
@@ -326,7 +323,7 @@ export default function EventModal({
             {localPhotos.length > 0 && (
               <div className="grid grid-cols-3 gap-2 mb-3">
                 {localPhotos.map((photo) => (
-                  <div key={photo.id} className="relative group aspect-square rounded-xl overflow-hidden">
+                  <div key={photo.id} className="relative aspect-square rounded-xl overflow-hidden">
                     <img
                       src={photo.url}
                       alt=""
@@ -334,10 +331,10 @@ export default function EventModal({
                     />
                     <button
                       onClick={() => handleRemovePhoto(photo)}
-                      className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                      className="absolute top-1 right-1 w-7 h-7 rounded-full bg-black/70 text-white flex items-center justify-center text-xs active:scale-90 transition-transform"
                     >
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </button>
                   </div>
