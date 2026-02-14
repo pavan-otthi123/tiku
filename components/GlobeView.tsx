@@ -6,7 +6,6 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Map,
   Marker,
-  Popup,
   NavigationControl,
   type MapRef,
 } from "@vis.gl/react-maplibre";
@@ -50,6 +49,39 @@ const MAP_STYLE: StyleSpecification = {
   ],
 };
 
+/* ── Inline photo carousel for the detail panel ── */
+function DetailCarousel({
+  photos,
+}: {
+  photos: TimelineEvent["photos"];
+  accentColor: string;
+}) {
+  if (photos.length === 0) return null;
+
+  return (
+    <div
+      className="flex flex-col gap-2 overflow-y-auto max-h-[50vh] pr-1 scrollbar-hide"
+      style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" }}
+    >
+      {photos.map((photo) => (
+        <div
+          key={photo.id}
+          className="relative aspect-[3/4] bg-black/20 rounded-xl overflow-hidden shrink-0"
+        >
+          <img
+            src={photo.url}
+            alt=""
+            className="w-full h-full object-cover"
+            draggable={false}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════ */
+
 export default function GlobeView({
   events,
   accentColor,
@@ -85,14 +117,13 @@ export default function GlobeView({
     try {
       map.setProjection({ type: "globe" });
     } catch {
-      // Globe projection requires maplibre-gl >= 5; fall back to mercator silently
+      // Globe projection requires maplibre-gl >= 5
     }
   }, []);
 
   /* Fly to first event when opened */
   useEffect(() => {
     if (!isOpen || points.length === 0) return;
-
     const timer = setTimeout(() => {
       const map = mapRef.current?.getMap();
       if (!map) return;
@@ -102,7 +133,6 @@ export default function GlobeView({
         duration: 1200,
       });
     }, 300);
-
     return () => clearTimeout(timer);
   }, [isOpen, points]);
 
@@ -122,7 +152,7 @@ export default function GlobeView({
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr + "T00:00:00");
     return d.toLocaleDateString("en-US", {
-      month: "short",
+      month: "long",
       day: "numeric",
       year: "numeric",
     });
@@ -138,8 +168,18 @@ export default function GlobeView({
         className="absolute top-4 right-4 z-50 w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm text-white flex items-center justify-center hover:bg-white/20 transition-colors active:scale-90"
         aria-label="Close globe"
       >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M6 18L18 6M6 6l12 12"
+          />
         </svg>
       </button>
 
@@ -165,6 +205,7 @@ export default function GlobeView({
         maxZoom={18}
         minZoom={1}
         attributionControl={false}
+        onClick={() => setSelectedPoint(null)}
       >
         <NavigationControl position="bottom-right" showCompass={false} />
 
@@ -180,12 +221,14 @@ export default function GlobeView({
               setSelectedPoint(point);
               mapRef.current?.getMap()?.flyTo({
                 center: [point.lng, point.lat],
-                zoom: Math.max(mapRef.current?.getMap()?.getZoom() ?? 6, 6),
+                zoom: Math.max(
+                  mapRef.current?.getMap()?.getZoom() ?? 6,
+                  6
+                ),
                 duration: 600,
               });
             }}
           >
-            {/* Custom pin marker */}
             <div className="flex flex-col items-center cursor-pointer group">
               <div
                 className="w-7 h-7 rounded-full border-2 border-white shadow-lg flex items-center justify-center transition-transform group-hover:scale-125"
@@ -194,11 +237,14 @@ export default function GlobeView({
                   boxShadow: `0 2px 8px ${point.color}80`,
                 }}
               >
-                <svg className="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <svg
+                  className="w-3.5 h-3.5 text-white"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 010-5 2.5 2.5 0 010 5z" />
                 </svg>
               </div>
-              {/* Pin tail */}
               <div
                 className="w-0.5 h-2 -mt-0.5"
                 style={{ backgroundColor: point.color }}
@@ -206,58 +252,102 @@ export default function GlobeView({
             </div>
           </Marker>
         ))}
+      </Map>
 
-        {/* Popup for selected point */}
+      {/* ── Detail panel (slides up from bottom) ── */}
+      <div
+        className="absolute bottom-0 left-0 right-0 z-50 transition-transform duration-300 ease-out"
+        style={{
+          transform: selectedPoint
+            ? "translateY(0)"
+            : "translateY(100%)",
+        }}
+      >
         {selectedPoint && (
-          <Popup
-            longitude={selectedPoint.lng}
-            latitude={selectedPoint.lat}
-            anchor="bottom"
-            offset={36}
-            closeOnClick={false}
-            onClose={() => setSelectedPoint(null)}
-            className="globe-popup"
-            maxWidth="280px"
-          >
-            <div className="p-1">
-              <h3 className="font-bold text-sm text-gray-900 truncate">
-                {selectedPoint.title}
-              </h3>
-              {selectedPoint.location && (
-                <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
-                  <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  {selectedPoint.location}
-                </p>
-              )}
-              <p className="text-xs text-gray-400 mt-0.5">
-                {formatDate(selectedPoint.date)}
-              </p>
-
-              {/* Thumbnail strip */}
-              {selectedPoint.event.photos.length > 0 && (
-                <div className="flex gap-1 mt-2 overflow-x-auto scrollbar-hide">
-                  {selectedPoint.event.photos.slice(0, 4).map((photo) => (
-                    <img
-                      key={photo.id}
-                      src={photo.url}
-                      alt=""
-                      className="w-12 h-12 rounded-md object-cover shrink-0"
+          <div className="mx-3 mb-3 md:mx-auto md:max-w-md">
+            <div className="bg-black/80 backdrop-blur-xl rounded-2xl border border-white/10 text-white overflow-hidden">
+              {/* Close detail */}
+              <div className="flex items-center justify-between px-4 pt-4 pb-2">
+                <div className="min-w-0">
+                  <h3 className="font-bold text-base truncate">
+                    {selectedPoint.title}
+                  </h3>
+                  <div className="flex items-center gap-3 mt-0.5">
+                    {selectedPoint.location && (
+                      <span className="text-xs text-white/50 flex items-center gap-1 truncate">
+                        <svg
+                          className="w-3 h-3 shrink-0"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                          />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                          />
+                        </svg>
+                        {selectedPoint.location}
+                      </span>
+                    )}
+                    <span className="text-xs text-white/35 shrink-0">
+                      {formatDate(selectedPoint.date)}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedPoint(null)}
+                  className="ml-3 w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/20 shrink-0 transition-colors"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
                     />
-                  ))}
-                  {selectedPoint.event.photos.length > 4 && (
-                    <div className="w-12 h-12 rounded-md bg-gray-100 flex items-center justify-center shrink-0 text-xs text-gray-400">
-                      +{selectedPoint.event.photos.length - 4}
-                    </div>
-                  )}
+                  </svg>
+                </button>
+              </div>
+
+              {/* Photo carousel */}
+              {selectedPoint.event.photos.length > 0 ? (
+                <div className="px-4 pb-4 pt-1">
+                  <DetailCarousel
+                    photos={selectedPoint.event.photos}
+                    accentColor={selectedPoint.color}
+                  />
+                  <p className="text-center text-[10px] text-white/30 mt-2">
+                    {selectedPoint.event.photos.length}{" "}
+                    {selectedPoint.event.photos.length === 1
+                      ? "photo"
+                      : "photos"}
+                    {" · scroll to browse"}
+                  </p>
+                </div>
+              ) : (
+                <div className="px-4 pb-4 pt-1">
+                  <div className="h-24 rounded-xl bg-white/5 flex items-center justify-center">
+                    <p className="text-xs text-white/30">No photos</p>
+                  </div>
                 </div>
               )}
             </div>
-          </Popup>
+          </div>
         )}
-      </Map>
+      </div>
 
       {/* Empty state */}
       {points.length === 0 && (
