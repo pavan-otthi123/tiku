@@ -24,11 +24,11 @@ const DELAY_MS = 3000;
 
 const SKETCH_PROMPTS = [
   (loc: string) =>
-    `Create a minimal single-line sketch drawing of the most iconic landmark or skyline of ${loc}. Simple black outline on a pure white background. No fill, no shading, no gradient, no color, no text. Just clean, thin, minimal continuous lines.`,
+    `Draw the silhouette outline of the skyline or most iconic landmark of ${loc} using a single thin continuous black line on a pure white background. Only draw the outer edge profile — like a city skyline silhouette. No interior details, no fill, no shading, no hatching, no color, no text, no ground line. Just one thin black outline tracing the shape against white.`,
   (loc: string) =>
-    `Create a minimal single-line sketch drawing of a natural element or landscape typical of ${loc} (could be a wave, mountain, tree, coastline, etc). Simple black outline on a pure white background. No fill, no shading, no color, no text.`,
+    `Draw the silhouette outline of a natural landscape element strongly associated with ${loc} (for example: a mountain range profile, ocean wave, cliff edge, palm tree, cactus, etc) using a single thin continuous black line on a pure white background. Only the outer edge silhouette — no interior detail, no fill, no shading, no hatching, no color, no text. Just one thin black outline on white.`,
   (loc: string) =>
-    `Create a minimal single-line sketch drawing of something culturally symbolic of ${loc}. Simple black outline on a pure white background. No fill, no shading, no color, no text.`,
+    `Draw the silhouette outline of a culturally iconic object or structure from ${loc} using a single thin continuous black line on a pure white background. Only the outer profile shape — no interior detail, no fill, no shading, no hatching, no color, no text. Just one thin black outline tracing the silhouette against white, like a minimal architectural profile drawing.`,
 ];
 
 // ── Load reference sketch ────────────────────────────
@@ -114,7 +114,7 @@ async function main() {
 
         if (sketchRef) {
           parts.push({
-            text: "Here is an example of the minimal line sketch style I want. Match this style — simple black outlines on white, no fills, no shading:",
+            text: "Here is an example of the exact style I want. Notice it is ONLY a thin black silhouette outline on pure white — just the outer edge profile, no interior details, no fill, no shading. Match this style precisely:",
           });
           parts.push({
             inlineData: { mimeType: "image/png", data: sketchRef },

@@ -127,27 +127,6 @@ export default function Timeline({
 
   return (
     <div className="relative">
-      {/* Globe button */}
-      <button
-        onClick={onOpenGlobe}
-        className="fixed top-4 left-12 md:left-16 z-30 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95"
-        style={{
-          backgroundColor: `${theme.accent}18`,
-          color: theme.accent,
-        }}
-        aria-label="Open globe view"
-        title="View our world"
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={1.8}
-            d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
-      </button>
-
       {/* Navigation dots */}
       <NavigationDots
         total={totalSections}
@@ -247,8 +226,45 @@ export default function Timeline({
               className="text-4xl md:text-6xl font-bold mb-3 transition-colors duration-700"
               style={{ color: theme.textAccent }}
             >
-              Our Story
+              Our World
             </h1>
+
+            {/* Globe icon button */}
+            <div className="relative w-14 h-14 mx-auto mb-5">
+              {/* Pulsing ring */}
+              <div
+                className="absolute inset-0 rounded-full animate-ping"
+                style={{ backgroundColor: `${theme.accent}15` }}
+              />
+              {/* Breathing glow ring */}
+              <div
+                className="absolute -inset-1 rounded-full animate-pulse-soft"
+                style={{
+                  border: `1.5px solid ${theme.accent}30`,
+                }}
+              />
+              <button
+                onClick={onOpenGlobe}
+                className="relative w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95"
+                style={{
+                  backgroundColor: `${theme.accent}20`,
+                  color: theme.accent,
+                  boxShadow: `0 0 20px ${theme.accent}25`,
+                }}
+                aria-label="Open globe view"
+                title="Explore our world"
+              >
+                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.8}
+                    d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </button>
+            </div>
+
             <p className="text-gray-400 text-sm mb-6 tracking-wide">
               Every moment together is a memory worth keeping
             </p>

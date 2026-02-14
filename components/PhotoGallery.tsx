@@ -8,13 +8,18 @@ interface PhotoGalleryProps {
   accentColor: string;
 }
 
-/* Fixed positions for the 5 photo slots – scattered around centre content */
+/* Fixed positions for the 10 photo slots – scattered around centre content */
 const SLOTS = [
-  { top: "6%", left: "4%", rotate: -7 },
-  { top: "4%", left: "62%", rotate: 5 },
-  { top: "42%", left: "2%", rotate: 4 },
-  { top: "52%", left: "65%", rotate: -6 },
-  { top: "28%", left: "68%", rotate: 3 },
+  { top: "4%", left: "3%", rotate: -7 },
+  { top: "3%", left: "58%", rotate: 5 },
+  { top: "22%", left: "1%", rotate: 4 },
+  { top: "20%", left: "66%", rotate: -6 },
+  { top: "42%", left: "4%", rotate: 3 },
+  { top: "40%", left: "62%", rotate: -4 },
+  { top: "60%", left: "2%", rotate: 6 },
+  { top: "58%", left: "67%", rotate: -5 },
+  { top: "78%", left: "5%", rotate: -3 },
+  { top: "76%", left: "60%", rotate: 4 },
 ];
 
 const FADE_MS = 800; // transition duration
@@ -23,9 +28,9 @@ const STAGGER_MS = 500; // delay between initial fade-ins
 
 export default function PhotoGallery({ photos, accentColor }: PhotoGalleryProps) {
   const [displayPhotos, setDisplayPhotos] = useState<(Photo | null)[]>(
-    Array(5).fill(null)
+    Array(10).fill(null)
   );
-  const [opacities, setOpacities] = useState<number[]>(Array(5).fill(0));
+  const [opacities, setOpacities] = useState<number[]>(Array(10).fill(0));
 
   // Track which photo indices (into photos[]) are currently showing
   const usedSet = useRef<Set<number>>(new Set());
@@ -59,8 +64,8 @@ export default function PhotoGallery({ photos, accentColor }: PhotoGalleryProps)
     initialised.current = true;
 
     const used = new Set<number>();
-    const initial: (Photo | null)[] = Array(5).fill(null);
-    const count = Math.min(5, photos.length);
+    const initial: (Photo | null)[] = Array(10).fill(null);
+    const count = Math.min(10, photos.length);
 
     for (let i = 0; i < count; i++) {
       const pick = pickRandom(used);
@@ -85,13 +90,12 @@ export default function PhotoGallery({ photos, accentColor }: PhotoGalleryProps)
     }
   }, [photos, pickRandom]);
 
-  /* ── Rotating swap: one slot every SWAP_INTERVAL_MS ── */
+  /* ── Random swap: pick a random slot every SWAP_INTERVAL_MS ── */
   useEffect(() => {
-    if (photos.length <= 5) return; // not enough to cycle
+    if (photos.length <= 10) return; // not enough to cycle
 
     const interval = setInterval(() => {
-      const slot = nextSlot.current;
-      nextSlot.current = (nextSlot.current + 1) % 5;
+      const slot = Math.floor(Math.random() * 10);
 
       // 1. Fade out
       setOpacities((prev) => {
