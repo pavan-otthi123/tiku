@@ -1,6 +1,7 @@
 "use client";
 
 import { TimelineEvent, Photo } from "@/lib/types";
+import { getEarliestPhotoDate } from "@/lib/exif";
 import { useState, useRef, useCallback } from "react";
 
 interface EventModalProps {
@@ -38,6 +39,10 @@ export default function EventModal({
   const [savedEventId, setSavedEventId] = useState<string | null>(
     event?.id || null
   );
+  const [dateAutoFilled, setDateAutoFilled] = useState(false);
+  const [dateManuallySet, setDateManuallySet] = useState(!!event?.date);
+  const [pendingPreviews, setPendingPreviews] = useState<string[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Reset state when modal opens/event changes
@@ -48,6 +53,11 @@ export default function EventModal({
     setSavedEventId(event?.id || null);
     setSaving(false);
     setUploadingPhotos(false);
+    setDateAutoFilled(false);
+    setDateManuallySet(!!event?.date);
+    pendingPreviews.forEach((url) => URL.revokeObjectURL(url));
+    setPendingPreviews([]);
+    setPendingFiles([]);
   }, [event]);
 
   // Reset when event changes
@@ -62,9 +72,25 @@ export default function EventModal({
       const savedEvent = await onSave(title.trim(), date);
       setSavedEventId(savedEvent.id);
       setLocalPhotos(savedEvent.photos || []);
-      if (!isEditing) {
-        // After creating, switch to edit mode so photos can be added
-        // Don't close — let user add photos
+
+      // Upload any pending (staged) files now that the event exists
+      if (pendingFiles.length > 0) {
+        setUploadingPhotos(true);
+        try {
+          for (const file of pendingFiles) {
+            await onAddPhoto(savedEvent.id, file);
+          }
+          // Refresh photos
+          const res = await fetch(`/api/events/${savedEvent.id}`);
+          const data = await res.json();
+          if (data.event) setLocalPhotos(data.event.photos);
+        } finally {
+          // Clean up previews
+          pendingPreviews.forEach((url) => URL.revokeObjectURL(url));
+          setPendingFiles([]);
+          setPendingPreviews([]);
+          setUploadingPhotos(false);
+        }
       }
     } catch (error) {
       console.error("Failed to save event:", error);
@@ -73,20 +99,35 @@ export default function EventModal({
     }
   };
 
-  const handleFiles = async (files: FileList) => {
-    if (!savedEventId) {
-      // Need to save the event first
-      if (!title.trim() || !date) return;
-      setSaving(true);
+  // Extract date from photo EXIF. Returns the date string if found.
+  const extractDateFromFiles = useCallback(
+    async (files: FileList): Promise<string | null> => {
+      if (dateManuallySet) return null;
       try {
-        const savedEvent = await onSave(title.trim(), date);
-        setSavedEventId(savedEvent.id);
-        await uploadFiles(savedEvent.id, files);
-      } catch (error) {
-        console.error("Failed to save event:", error);
-      } finally {
-        setSaving(false);
+        const exifDate = await getEarliestPhotoDate(Array.from(files));
+        if (exifDate) {
+          setDate(exifDate);
+          setDateAutoFilled(true);
+          return exifDate;
+        }
+      } catch {
+        // Silently fail — EXIF extraction is best-effort
       }
+      return null;
+    },
+    [dateManuallySet]
+  );
+
+  const handleFiles = async (files: FileList) => {
+    // Auto-fill date from EXIF before uploading
+    await extractDateFromFiles(files);
+
+    if (!savedEventId) {
+      // Event not saved yet — stage files as previews
+      const newFiles = Array.from(files);
+      setPendingFiles((prev) => [...prev, ...newFiles]);
+      const previews = newFiles.map((f) => URL.createObjectURL(f));
+      setPendingPreviews((prev) => [...prev, ...previews]);
       return;
     }
     await uploadFiles(savedEventId, files);
@@ -199,13 +240,30 @@ export default function EventModal({
 
           {/* Date */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-              Date
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-sm font-semibold text-gray-700">
+                Date
+              </label>
+              {dateAutoFilled && (
+                <span
+                  className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+                  style={{
+                    backgroundColor: `${accentColor}15`,
+                    color: accentColor,
+                  }}
+                >
+                  auto-detected from photo
+                </span>
+              )}
+            </div>
             <input
               type="date"
               value={date}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={(e) => {
+                setDate(e.target.value);
+                setDateManuallySet(true);
+                setDateAutoFilled(false);
+              }}
               className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-current focus:ring-2 focus:ring-current/10 outline-none text-gray-800 text-sm transition-all"
             />
           </div>
@@ -236,14 +294,35 @@ export default function EventModal({
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Photos
-              {!savedEventId && (
-                <span className="text-xs font-normal text-gray-400 ml-2">
-                  (save the event first, or just drop photos below)
-                </span>
-              )}
             </label>
 
-            {/* Existing photos grid */}
+            {/* Pending preview thumbnails (before event is saved) */}
+            {pendingPreviews.length > 0 && (
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                {pendingPreviews.map((src, i) => (
+                  <div key={i} className="relative group aspect-square rounded-xl overflow-hidden" style={{ boxShadow: `0 0 0 2px ${accentColor}40` }}>
+                    <img src={src} alt="" className="w-full h-full object-cover" />
+                    <button
+                      onClick={() => {
+                        URL.revokeObjectURL(src);
+                        setPendingPreviews((prev) => prev.filter((_, j) => j !== i));
+                        setPendingFiles((prev) => prev.filter((_, j) => j !== i));
+                      }}
+                      className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                    <div className="absolute bottom-0 inset-x-0 bg-black/40 text-white text-[9px] text-center py-0.5">
+                      pending
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Existing photos grid (after event is saved) */}
             {localPhotos.length > 0 && (
               <div className="grid grid-cols-3 gap-2 mb-3">
                 {localPhotos.map((photo) => (
@@ -305,6 +384,9 @@ export default function EventModal({
                   </svg>
                   <p className="text-xs text-gray-400">
                     Drop photos here or <span style={{ color: accentColor }}>browse</span>
+                  </p>
+                  <p className="text-[10px] text-gray-300 mt-1">
+                    Date auto-fills from photo metadata
                   </p>
                 </div>
               )}
