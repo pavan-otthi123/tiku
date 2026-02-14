@@ -2,7 +2,7 @@
 
 import { TimelineEvent, Photo } from "@/lib/types";
 import { getFilesMetadata } from "@/lib/exif";
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 
 interface EventModalProps {
   isOpen: boolean;
@@ -79,14 +79,20 @@ export default function EventModal({
     setLocationAutoFilled(false);
     setDateManuallySet(!!event?.date);
     setLocationManuallySet(!!event?.location);
-    pendingPreviews.forEach((url) => URL.revokeObjectURL(url));
-    setPendingPreviews([]);
+    // Revoke old object URLs to prevent memory leaks
+    setPendingPreviews((prev) => {
+      prev.forEach((url) => URL.revokeObjectURL(url));
+      return [];
+    });
     setPendingFiles([]);
   }, [event]);
 
-  useState(() => {
-    resetState();
-  });
+  // Reset all state whenever the modal opens or the event changes
+  useEffect(() => {
+    if (isOpen) {
+      resetState();
+    }
+  }, [isOpen, event, resetState]);
 
   // ── File handling ──────────────────────────────────
 
