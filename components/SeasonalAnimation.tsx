@@ -27,13 +27,13 @@ function randomBetween(min: number, max: number) {
 /* ── Particle generators ── */
 
 function generateSnowflakes(): Particle[] {
-  return Array.from({ length: 35 }, (_, i) => ({
+  return Array.from({ length: 40 }, (_, i) => ({
     id: i,
     left: randomBetween(0, 100),
-    size: randomBetween(2, 5),
+    size: randomBetween(3, 7),
     delay: randomBetween(0, 12),
     duration: randomBetween(6, 14),
-    opacity: randomBetween(0.3, 0.7),
+    opacity: randomBetween(0.6, 1),
     drift: randomBetween(-20, 20),
     rotation: 0,
   }));
@@ -123,8 +123,9 @@ export default function SeasonalAnimation({
                   left: `${p.left}%`,
                   width: p.size,
                   height: p.size,
-                  backgroundColor: "rgba(255,255,255,0.8)",
+                  backgroundColor: "#fff",
                   opacity: p.opacity,
+                  boxShadow: `0 0 ${p.size + 2}px rgba(180,210,255,0.7), 0 0 ${p.size * 2}px rgba(180,210,255,0.3)`,
                   animationDuration: `${p.duration}s`,
                   animationDelay: `${p.delay}s`,
                   ["--drift" as string]: `${p.drift}px`,
