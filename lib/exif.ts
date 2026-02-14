@@ -4,8 +4,8 @@ import exifr from "exifr";
  * All metadata we can extract from a photo's EXIF data.
  */
 export interface PhotoMetadata {
-  date: string | null; // YYYY-MM-DD
-  location: string | null; // Human-readable location
+  date: string | null;
+  location: string | null;
   latitude: number | null;
   longitude: number | null;
 }
@@ -22,6 +22,9 @@ export async function getPhotoMetadata(file: File): Promise<PhotoMetadata> {
     longitude: null,
   };
 
+  console.log(`[EXIF] Processing file: ${file.name} (${file.type}, ${(file.size / 1024).toFixed(1)}KB)`);
+
+  // ── 1. Extract date tags ──
   try {
     const exif = await exifr.parse(file, {
       pick: [
@@ -29,14 +32,12 @@ export async function getPhotoMetadata(file: File): Promise<PhotoMetadata> {
         "CreateDate",
         "ModifyDate",
         "GPSDateStamp",
-        "latitude",
-        "longitude",
       ],
-      gps: true, // exifr will auto-convert GPS tags to decimal degrees
     });
 
+    console.log("[EXIF] Date tags:", JSON.stringify(exif, null, 2));
+
     if (exif) {
-      // ── Date extraction ──
       const dateValue =
         exif.DateTimeOriginal || exif.CreateDate || exif.ModifyDate;
 
@@ -49,37 +50,50 @@ export async function getPhotoMetadata(file: File): Promise<PhotoMetadata> {
       if (!result.date && exif.GPSDateStamp && typeof exif.GPSDateStamp === "string") {
         result.date = parseExifDateString(exif.GPSDateStamp);
       }
-
-      // ── GPS extraction ──
-      if (typeof exif.latitude === "number" && typeof exif.longitude === "number") {
-        result.latitude = exif.latitude;
-        result.longitude = exif.longitude;
-      }
     }
-  } catch {
-    // EXIF parsing failed — not all images have EXIF data
+  } catch (err) {
+    console.warn("[EXIF] Date extraction failed:", err);
   }
 
-  // Date fallback: file.lastModified
+  // ── 2. Extract GPS coordinates using dedicated exifr.gps() ──
+  try {
+    const gps = await exifr.gps(file);
+    console.log("[EXIF] GPS result:", JSON.stringify(gps));
+
+    if (gps && typeof gps.latitude === "number" && typeof gps.longitude === "number") {
+      result.latitude = gps.latitude;
+      result.longitude = gps.longitude;
+      console.log(`[EXIF] Got coordinates: ${gps.latitude}, ${gps.longitude}`);
+    } else {
+      console.log("[EXIF] No GPS coordinates found in this file");
+    }
+  } catch (err) {
+    console.warn("[EXIF] GPS extraction failed:", err);
+  }
+
+  // ── 3. Date fallback: file.lastModified ──
   if (!result.date && file.lastModified) {
     const d = new Date(file.lastModified);
     if (!isNaN(d.getTime())) {
       result.date = formatDate(d);
+      console.log(`[EXIF] Using file.lastModified as date fallback: ${result.date}`);
     }
   }
 
-  // Reverse geocode GPS to human-readable location
+  // ── 4. Reverse geocode GPS to human-readable location ──
   if (result.latitude !== null && result.longitude !== null) {
+    console.log(`[EXIF] Reverse geocoding ${result.latitude}, ${result.longitude}...`);
     result.location = await reverseGeocode(result.latitude, result.longitude);
+    console.log(`[EXIF] Reverse geocode result: "${result.location}"`);
   }
 
+  console.log("[EXIF] Final metadata:", JSON.stringify(result));
   return result;
 }
 
 /**
  * Extract metadata from multiple files.
  * Defaults to the FIRST photo's date and location.
- * Falls back through subsequent photos if the first has no data.
  */
 export interface FilesMetadataResult {
   date: string | null;
@@ -91,6 +105,8 @@ export interface FilesMetadataResult {
 export async function getFilesMetadata(
   files: File[]
 ): Promise<FilesMetadataResult> {
+  console.log(`[EXIF] Processing ${files.length} file(s)`);
+
   const results = await Promise.all(files.map(getPhotoMetadata));
 
   // Use first photo's date; fall back to first available
@@ -108,7 +124,9 @@ export async function getFilesMetadata(
   const latitude = firstWithLocation?.latitude ?? null;
   const longitude = firstWithLocation?.longitude ?? null;
 
-  return { date, location, latitude, longitude };
+  const out = { date, location, latitude, longitude };
+  console.log("[EXIF] getFilesMetadata result:", JSON.stringify(out));
+  return out;
 }
 
 // Keep the old export for backward compat
@@ -127,15 +145,21 @@ async function reverseGeocode(
   lat: number,
   lng: number
 ): Promise<string | null> {
+  const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`;
+  console.log(`[EXIF] Geocode URL: ${url}`);
+
   try {
-    const res = await fetch(
-      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`
-    );
-    if (!res.ok) return fallbackCoords(lat, lng);
+    const res = await fetch(url);
+    console.log(`[EXIF] Geocode response status: ${res.status}`);
+
+    if (!res.ok) {
+      console.warn(`[EXIF] Geocode failed with status ${res.status}`);
+      return fallbackCoords(lat, lng);
+    }
 
     const data = await res.json();
+    console.log("[EXIF] Geocode response:", JSON.stringify(data).slice(0, 500));
 
-    // Build a concise location string
     const parts: string[] = [];
     if (data.locality) parts.push(data.locality);
     else if (data.city) parts.push(data.city);
@@ -149,7 +173,8 @@ async function reverseGeocode(
     if (parts.length > 0) return parts.join(", ");
 
     return fallbackCoords(lat, lng);
-  } catch {
+  } catch (err) {
+    console.error("[EXIF] Geocode error:", err);
     return fallbackCoords(lat, lng);
   }
 }
