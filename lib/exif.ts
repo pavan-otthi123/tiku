@@ -78,7 +78,8 @@ export async function getPhotoMetadata(file: File): Promise<PhotoMetadata> {
 
 /**
  * Extract metadata from multiple files.
- * Returns the earliest date and the first location found.
+ * Defaults to the FIRST photo's date and location.
+ * Falls back through subsequent photos if the first has no data.
  */
 export interface FilesMetadataResult {
   date: string | null;
@@ -92,16 +93,20 @@ export async function getFilesMetadata(
 ): Promise<FilesMetadataResult> {
   const results = await Promise.all(files.map(getPhotoMetadata));
 
-  // Earliest date
-  const dates = results.map((r) => r.date).filter(Boolean) as string[];
-  dates.sort();
-  const date = dates[0] || null;
+  // Use first photo's date; fall back to first available
+  const date =
+    results[0]?.date ||
+    results.find((r) => r.date)?.date ||
+    null;
 
-  // First location found (with coords)
-  const withLocation = results.find((r) => r.location);
-  const location = withLocation?.location || null;
-  const latitude = withLocation?.latitude ?? null;
-  const longitude = withLocation?.longitude ?? null;
+  // Use first photo's location; fall back to first available
+  const firstWithLocation = results[0]?.location
+    ? results[0]
+    : results.find((r) => r.location) || null;
+
+  const location = firstWithLocation?.location || null;
+  const latitude = firstWithLocation?.latitude ?? null;
+  const longitude = firstWithLocation?.longitude ?? null;
 
   return { date, location, latitude, longitude };
 }
